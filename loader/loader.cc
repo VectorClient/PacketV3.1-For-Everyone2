@@ -17,11 +17,14 @@ class ClientInstance;
 ClientInstance* clientInstance;
 
 constexpr uint32_t present_table_index = 8;
+constexpr uint32_t resize_buffers_table_index = 13;
 
 static bool patchedOriginal = false;
 constexpr uint32_t present_hook_offset = 0x23CCC0;
+constexpr uint32_t resize_buffers_hook_offset = 0x241410;
 
-constexpr uint32_t present_original_data_offset = 0x3CBB78;
+constexpr uint32_t present_original_func_offset = 0x3CBB78;
+constexpr uint32_t resize_buffers_original_func_offset = 0x3CBB70;
 constexpr uint32_t user_info_offset = 0x303250;
 constexpr uint32_t client_instance_offset = 0x3C9778;
 constexpr uint32_t map_offset = 0x2FA340;
@@ -52,6 +55,15 @@ HRESULT Loader::present_detour(IDXGISwapChain* swapChain, UINT syncInterval, UIN
 	return func(swapChain, syncInterval, flags);
 }
 
+HRESULT Loader::resize_buffers_detour(IDXGISwapChain* swapChain, UINT width, UINT height, DXGI_FORMAT newFormat, UINT swapChainFlags) {
+	uint64_t packetHandle = reinterpret_cast<uint64_t>(getPacketHandle());
+	if (!packetHandle) {
+		return originalResizeBuffers(swapChain, width, height, newFormat, swapChainFlags);
+	}
+	ResizeBuffersFunc func = reinterpret_cast<ResizeBuffersFunc>(packetHandle + resize_buffers_hook_offset);
+	return func(swapChain, width, height, newFormat, swapChainFlags);
+}
+
 void Loader::update_detour(ClientInstance* clientInstance, bool flag) {
 	if (!::clientInstance) {
 		printf("[+] Retrieved CI Instance: %p\n", clientInstance);
@@ -61,26 +73,23 @@ void Loader::update_detour(ClientInstance* clientInstance, bool flag) {
 }
 
 void Loader::storeVariables(uint64_t handle) {
-	// original of present
+	// original present
 	{
-		DWORD oldProtect;
-		void** target = reinterpret_cast<void**>(handle + present_original_data_offset);
-		VirtualProtect(target, sizeof(void*), PAGE_READWRITE, &oldProtect);
+		void** target = reinterpret_cast<void**>(handle + present_original_func_offset);
 		*target = reinterpret_cast<void*>(originalPresent);
-		VirtualProtect(target, sizeof(void*), oldProtect, &oldProtect);
 	}
-
+	// original resize buffers
+	{
+		void** target = reinterpret_cast<void**>(handle + resize_buffers_original_func_offset);
+		*target = reinterpret_cast<void*>(originalResizeBuffers);
+	}
 	// user info
 	{
 		void** target = reinterpret_cast<void**>(handle + user_info_offset);
 		char* userInfo = static_cast<char*>(malloc(0x1337));
 		new (userInfo + 0x140) std::string("1337");
-		DWORD oldProtect;
-		VirtualProtect(target, 0x100, PAGE_READWRITE, &oldProtect);
 		*target = userInfo;
-		VirtualProtect(target, 0x100, oldProtect, &oldProtect);
 	}
-
 	// client instance
 	{
 		void** target = reinterpret_cast<void**>(handle + client_instance_offset);
@@ -103,6 +112,11 @@ void Loader::init() {
 		void* presentPtr = reinterpret_cast<void*>(Kiero::getMethodsTable()[present_table_index]);
 		MH_CreateHook(presentPtr, reinterpret_cast<void*>(&present_detour), reinterpret_cast<void**>(&originalPresent));
 		MH_EnableHook(presentPtr);
+
+		void* resizePtr = reinterpret_cast<void*>(Kiero::getMethodsTable()[resize_buffers_table_index]);
+		MH_CreateHook(resizePtr, reinterpret_cast<void*>(&resize_buffers_detour), reinterpret_cast<void**>(&originalResizeBuffers));
+		MH_EnableHook(resizePtr);
+
 		printf("[!] Created present hook\n");
 	}
 
