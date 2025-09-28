@@ -27,6 +27,8 @@ class Loader {
 
 	static void storeVariables(uint64_t handle);
 
+	static void remap(uint64_t handle);
+
 public:
 	static void init();
 

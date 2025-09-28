@@ -12,7 +12,8 @@
 #include "MinHook.h"
 
 constexpr uint32_t start_address_offset = 0x247E70;
-constexpr uint32_t map_offset = 0x2FA340;
+constexpr uint32_t func_map_offset = 0x2FA340;
+constexpr uint32_t offset_map_offset = 0x2FA380;
 
 HANDLE WINAPI Hooks::create_thread_detour(LPSECURITY_ATTRIBUTES lpThreadAttributes,
 										  SIZE_T dwStackSize,
@@ -46,10 +47,17 @@ void Hooks::intercept(uint64_t baseAddr) {
 	std::thread t([=]() {
 		std::this_thread::sleep_for(std::chrono::seconds(5));
 
+		printf("\n\rfunc:\n");
 		uint64_t mcBaseAddress = reinterpret_cast<uint64_t>(GetModuleHandleA("Minecraft.Windows.exe"));
-		auto mapPtr = reinterpret_cast<std::unordered_map<uint32_t, uint64_t>*>(baseAddr + map_offset);
-		for (const auto& pair : *mapPtr) {
+		auto funcMapPtr = reinterpret_cast<std::unordered_map<uint32_t, uint64_t>*>(baseAddr + func_map_offset);
+		for (const auto& pair : *funcMapPtr) {
 			printf("%d %llx\n", pair.first, pair.second - mcBaseAddress);
+		}
+
+		printf("\n\roffset:\n");
+		auto offsetMapPtr = reinterpret_cast<std::unordered_map<uint32_t, int32_t>*>(baseAddr + offset_map_offset);
+		for (const auto& pair : *offsetMapPtr) {
+			printf("%d %x\n", pair.first, pair.second);
 		}
 	});
 	t.detach();
