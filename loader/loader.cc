@@ -23,8 +23,9 @@ static bool patchedOriginal = false;
 constexpr uint32_t present_hook_offset = 0x23CCC0;
 constexpr uint32_t resize_buffers_hook_offset = 0x241410;
 
-constexpr uint32_t present_original_func_offset = 0x3CBB78;
-constexpr uint32_t resize_buffers_original_func_offset = 0x3CBB70;
+constexpr uint32_t minhook_initialize_func_offset = 0x24C010;
+constexpr uint32_t present_original_callback_offset = 0x3CBB78;
+constexpr uint32_t resize_buffers_original_callback_offset = 0x3CBB70;
 constexpr uint32_t user_info_offset = 0x303250;
 constexpr uint32_t client_instance_offset = 0x3C9778;
 constexpr uint32_t map_offset = 0x2FA340;
@@ -38,7 +39,11 @@ HRESULT Loader::present_detour(IDXGISwapChain* swapChain, UINT syncInterval, UIN
 	}
 	PresentFunc func = reinterpret_cast<PresentFunc>(packetHandle + present_hook_offset);
 	if (!patchedOriginal) {
-		printf("[+] Caught the handle: handle=%llu, target=%p\n", packetHandle, func);
+		printf("[+] Caught the handle: handle=%llu, target=%p\n", packetHandle, func);	// hooks
+		typedef void(__fastcall * MinhookInitializeFunc)();
+		reinterpret_cast<MinhookInitializeFunc>(packetHandle + minhook_initialize_func_offset)();
+		printf("[+] Initialized hook\n");
+		// variables
 		storeVariables(packetHandle);
 		printf("[+] Stored globals\n");
 		// remap
@@ -75,12 +80,12 @@ void Loader::update_detour(ClientInstance* clientInstance, bool flag) {
 void Loader::storeVariables(uint64_t handle) {
 	// original present
 	{
-		void** target = reinterpret_cast<void**>(handle + present_original_func_offset);
+		void** target = reinterpret_cast<void**>(handle + present_original_callback_offset);
 		*target = reinterpret_cast<void*>(originalPresent);
 	}
 	// original resize buffers
 	{
-		void** target = reinterpret_cast<void**>(handle + resize_buffers_original_func_offset);
+		void** target = reinterpret_cast<void**>(handle + resize_buffers_original_callback_offset);
 		*target = reinterpret_cast<void*>(originalResizeBuffers);
 	}
 	// user info
