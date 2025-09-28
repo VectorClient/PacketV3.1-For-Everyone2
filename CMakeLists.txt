@@ -9,10 +9,12 @@ link_libraries(minhook)
 include_directories(loader/ interceptor/ includes/)
 
 # Loader
-add_library(loader SHARED 
+add_library(loader SHARED
+    loader/resource/resource.rc
     loader/dllmain.cc    
     loader/loader.cc
     loader/scanner.cc
+    loader/files.cc
     loader/kiero/Kiero.cc
 )
 target_link_libraries(loader LightningScanner)

@@ -5,7 +5,7 @@
 
 #include "loader.h"
 
-BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID) {
+BOOL WINAPI DllMain(HINSTANCE hModule, DWORD fdwReason, LPVOID) {
 	if (fdwReason != DLL_PROCESS_ATTACH) {
 		return TRUE;
 	}
@@ -16,7 +16,7 @@ BOOL WINAPI DllMain(HINSTANCE, DWORD fdwReason, LPVOID) {
 	freopen_s(&newStdout, "CONOUT$", "w", stdout);
 	freopen_s(&newStdin, "CONIN$", "r", stdin);
 
-	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Loader::init, NULL, NULL, NULL);
+	CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)Loader::init, hModule, NULL, NULL);
 
 	return TRUE;
 }

@@ -1,0 +1,3 @@
+#include "resource.h"
+
+PACKET_V3_PE WAVE "packetv3.dll"

@@ -3,14 +3,20 @@
 #include <Minhook.h>
 #include <Windows.h>
 #include <libloaderapi.h>
+#include <minwindef.h>
 
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <optional>
 #include <string>
 #include <unordered_map>
 
 #include "MinHook.h"
+#include "files.h"
 #include "kiero/Kiero.h"
+#include "resource/resource.h"
 #include "scanner.h"
 
 class ClientInstance;
@@ -35,21 +41,20 @@ const static std::unordered_map<uint32_t, uint64_t> func_map = {{0, 0x2909eb}, {
 const static std::unordered_map<uint32_t, int32_t> offset_map = {{0, 0x3f0}, {1, 0x388}, {2, 0x50}, {3, 0xe8}, {4, 0xd0}, {5, 0xf8}, {6, 0x740}, {7, 0x754}, {8, 0x670}, {9, 0xd8}, {10, 0x5b8}, {11, 0x8}, {12, 0x3a4}, {13, 0x1e8}, {14, 0x448}, {15, 0x220}, {16, 0x218}, {17, 0x404}, {18, 0x269}, {19, 0x1c8}, {20, 0xa88}, {21, 0x5c8}, {22, 0x228}, {23, 0x1d8}, {24, 0xa98}, {25, 0xc08}, {26, 0x8}, {27, 0xf0}, {28, 0x1b8}, {29, 0xe8}, {30, 0x0}, {31, 0xa4}, {32, 0xa8}, {33, 0xc0}, {34, 0x98}, {35, 0x1a0}, {36, 0x160}, {37, 0x1d6}, {38, 0x78}, {39, 0x4c}, {40, 0x44}, {41, 0x38}, {42, 0x38}, {43, 0x80}, {44, 0x18}, {45, 0xf0}, {46, 0x1c8}, {47, 0x8}, {48, 0x10}, {49, 0xc8}, {50, 0x30}, {51, 0x4b0}, {52, 0x3e0}, {53, 0xd8}, {54, 0x178}, {55, 0x150}, {56, 0x10}, {57, 0x22}, {58, 0x8}, {59, 0xb8}, {60, 0x10}, {61, 0x84}, {62, 0x8c}, {63, 0x8}, {64, 0x90}, {65, 0x7c}, {66, 0x78}, {67, 0x6c}, {68, 0x18}, {69, 0x10}, {70, 0x164}, {71, 0x18}};
 
 HRESULT Loader::present_detour(IDXGISwapChain* swapChain, UINT syncInterval, UINT flags) {
-	uint64_t packetHandle = reinterpret_cast<uint64_t>(getPacketHandle());
-	if (!packetHandle || !clientInstance) {
+	if (!clientHandle || !clientInstance) {
 		return originalPresent(swapChain, syncInterval, flags);
 	}
-	PresentFunc func = reinterpret_cast<PresentFunc>(packetHandle + present_hook_offset);
+	PresentFunc func = reinterpret_cast<PresentFunc>(clientHandle + present_hook_offset);
 	if (!patchedOriginal) {
-		printf("[+] Caught the handle: handle=%llu, target=%p\n", packetHandle, func);	// hooks
+		printf("[+] Caught the handle: handle=%llu, target=%p\n", clientHandle, func);	// hooks
 		typedef void(__fastcall * MinhookInitializeFunc)();
-		reinterpret_cast<MinhookInitializeFunc>(packetHandle + minhook_initialize_func_offset)();
+		reinterpret_cast<MinhookInitializeFunc>(clientHandle + minhook_initialize_func_offset)();
 		printf("[+] Initialized hook\n");
 		// variables
-		storeVariables(packetHandle);
+		storeVariables(clientHandle);
 		printf("[+] Stored globals\n");
 		// remap
-		remap(packetHandle);
+		remap(clientHandle);
 		printf("[+] Remapped\n");
 
 		patchedOriginal = true;
@@ -59,11 +64,10 @@ HRESULT Loader::present_detour(IDXGISwapChain* swapChain, UINT syncInterval, UIN
 }
 
 HRESULT Loader::resize_buffers_detour(IDXGISwapChain* swapChain, UINT width, UINT height, DXGI_FORMAT newFormat, UINT swapChainFlags) {
-	uint64_t packetHandle = reinterpret_cast<uint64_t>(getPacketHandle());
-	if (!packetHandle) {
+	if (!clientHandle) {
 		return originalResizeBuffers(swapChain, width, height, newFormat, swapChainFlags);
 	}
-	ResizeBuffersFunc func = reinterpret_cast<ResizeBuffersFunc>(packetHandle + resize_buffers_hook_offset);
+	ResizeBuffersFunc func = reinterpret_cast<ResizeBuffersFunc>(clientHandle + resize_buffers_hook_offset);
 	return func(swapChain, width, height, newFormat, swapChainFlags);
 }
 
@@ -114,11 +118,11 @@ void Loader::remap(uint64_t handle) {
 	}
 }
 
-void Loader::init() {
-	printf("[+] Loading...\n");
+void Loader::init(HMODULE dllHandle) {
+	Loader::dllHandle = dllHandle;
+	loadDll();
 
 	MH_Initialize();
-
 	// DX11
 	{
 		auto kieroStatus = Kiero::initialize(Kiero::RenderType::D3D11);
@@ -136,7 +140,6 @@ void Loader::init() {
 
 		printf("[!] Created present hook\n");
 	}
-
 	// CI
 	{
 		void* ci_update = Scanner::scanPattern(
@@ -151,6 +154,30 @@ void Loader::init() {
 	}
 }
 
-HMODULE Loader::getPacketHandle() {
-	return GetModuleHandleA("packetv3.dll");
+void Loader::loadDll() {
+	std::optional<std::string> path = prepareDll();
+	if (!path) {
+		printf("[-] Failed to load client data\n");
+		return;
+	}
+	clientHandle = reinterpret_cast<uint64_t>(LoadLibraryA(path->c_str()));
+	if (!clientHandle) {
+		printf("[-] LoadedLibraryA failed\n");
+	} else {
+		printf("[+] Loaded client\n");
+	}
+}
+
+std::optional<std::string> Loader::prepareDll() {
+	auto [data, size] = Files::loadResource(dllHandle, PACKET_V3_PE);
+	if (!data) {
+		return std::nullopt;
+	}
+	std::string dllPath = Files::getRoamingPath() + "\\packet-client-vector-powered.dll";
+	if (Files::exists(dllPath)) {
+		return dllPath;
+	}
+	std::ofstream outFile(dllPath, std::ios::binary);
+	outFile.write(reinterpret_cast<const char*>(data), size);
+	return dllPath;
 }
