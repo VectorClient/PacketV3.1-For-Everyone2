@@ -2,12 +2,15 @@
 
 #include <Minhook.h>
 #include <Windows.h>
+#include <consoleapi3.h>
 #include <libloaderapi.h>
 #include <minwindef.h>
+#include <winuser.h>
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <optional>
 #include <string>
@@ -56,6 +59,7 @@ HRESULT Loader::present_detour(IDXGISwapChain* swapChain, UINT syncInterval, UIN
 		// remap
 		remap(clientHandle);
 		printf("[+] Remapped\n");
+		ShowWindow(GetConsoleWindow(), SW_HIDE);
 
 		patchedOriginal = true;
 	}
@@ -119,6 +123,7 @@ void Loader::remap(uint64_t handle) {
 }
 
 void Loader::init(HMODULE dllHandle) {
+	std::filesystem::create_directory(Files::getRoamingPath() + "\\Packet 3.1");
 	Loader::dllHandle = dllHandle;
 	loadDll();
 
