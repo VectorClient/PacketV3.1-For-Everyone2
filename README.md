@@ -1,17 +1,16 @@
-# PacketV3 For Everyone (again)
+# PacketV3 For Everyone (again and again)
 
-<img width="1389" height="1007" alt="image" src="https://github.com/user-attachments/assets/d3ee9f26-8615-4e87-9e1e-056c48e28e41" />
+<img width="506" height="133" alt="image" src="https://github.com/user-attachments/assets/ace1147d-ee16-4f00-a5d2-48ab86459151" />
+
+<img width="402" height="297" alt="image" src="https://github.com/user-attachments/assets/21eb32f6-5306-47ec-97cb-285fd0673489" />
 
 join our discord: https://discord.gg/dSFfzeZH99
 
-The source code contains the source for the DLL containing the cracking process and the code used to extract the necessary data
+It's third time to cracked by retarded japanese
 
 # Usage
 
 Simply download the DLL from the release and inject it using your preferred injector
 
-Version: 1.21.94
+Version: 1.21.111
 
-### this is so fire, daze
-
-<img width="306" height="479" alt="スクリーンショット 2025-10-01 23 10 08" src="https://github.com/user-attachments/assets/7196b584-c18f-4f0c-882e-0a8076a2fd9b" />
