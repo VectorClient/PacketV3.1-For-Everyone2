@@ -1,6 +1,5 @@
 #include <Windows.h>
 #include <processthreadsapi.h>
-#include <winuser.h>
 
 #include <cstdio>
 

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.29)
-project(project CXX)
+project(loader CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,7 +15,6 @@ add_library(loader SHARED
     loader/loader.cc
     loader/scanner.cc
     loader/files.cc
-    loader/remapper.cc
     loader/kiero/Kiero.cc
 )
 target_link_libraries(loader LightningScanner)

@@ -2,8 +2,20 @@
 
 #include "LightningScanner/LightningScanner.hpp"
 
-SectionInfo Scanner::getSection(HANDLE handle, std::string const& targetSegmentName) {
-	auto dosHeader = reinterpret_cast<IMAGE_DOS_HEADER*>(handle);
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
+struct SegmentInfo {
+	void* startAddress;
+	size_t size;
+};
+
+HMODULE getModuleHandle() {
+	return GetModuleHandleA("Minecraft.Windows.exe");
+}
+
+SegmentInfo getSegment(std::string const& targetSegmentName) {
+	auto dosHeader = reinterpret_cast<IMAGE_DOS_HEADER*>(getModuleHandle());
 	auto ntHeaders = reinterpret_cast<IMAGE_NT_HEADERS*>(reinterpret_cast<char*>(dosHeader) + dosHeader->e_lfanew);
 	auto firstSection = IMAGE_FIRST_SECTION(ntHeaders);
 	for (int i = 0; i < ntHeaders->FileHeader.NumberOfSections; i++) {
@@ -12,7 +24,7 @@ SectionInfo Scanner::getSection(HANDLE handle, std::string const& targetSegmentN
 		if (targetSegmentName != segmentName) {
 			continue;
 		}
-		char* startAddress = reinterpret_cast<char*>(handle) + section.VirtualAddress;
+		char* startAddress = reinterpret_cast<char*>(getModuleHandle()) + section.VirtualAddress;
 		size_t segmentSize = section.Misc.VirtualSize;
 		return {
 			startAddress,
@@ -26,8 +38,7 @@ SectionInfo Scanner::getSection(HANDLE handle, std::string const& targetSegmentN
 void* Scanner::scanPattern(std::string const& pattern) {
 	auto scanner = LightningScanner::Scanner<>(LightningScanner::Pattern(pattern));
 
-	auto modHandle = GetModuleHandleA("Minecraft.Windows.exe");
-	static SectionInfo info = getSection(modHandle, ".text");
+	static SegmentInfo info = getSegment(".text");
 	if (info.startAddress == nullptr) {
 		return nullptr;
 	}
