@@ -3,7 +3,6 @@
 #include <Windows.h>
 
 #include <cstdint>
-#include <unordered_map>
 
 class Hooks {
 	typedef HANDLE(WINAPI* CreateThreadFunc)(LPSECURITY_ATTRIBUTES,
