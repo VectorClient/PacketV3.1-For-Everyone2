@@ -103,7 +103,6 @@ HANDLE WINAPI Loader::createThreadDetour(LPSECURITY_ATTRIBUTES lpThreadAttribute
 
 DWORD WINAPI Loader::sendDetour(HANDLE socket, LPCSTR content, DWORD len, DWORD flags) {
 	if (reinterpret_cast<uint64_t>(socket) == fake_socket_handle) {
-		printf("ok\n");
 		return 0;
 	}
 	return originalSend(socket, content, len, flags);
