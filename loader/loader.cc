@@ -5,6 +5,7 @@
 #include <consoleapi3.h>
 #include <libloaderapi.h>
 #include <minwindef.h>
+#include <winnt.h>
 #include <winuser.h>
 
 #include <cstdint>
@@ -15,7 +16,6 @@
 #include <optional>
 #include <string>
 
-#include "MinHook.h"
 #include "files.h"
 #include "kiero/Kiero.h"
 #include "remapper.hpp"
@@ -179,6 +179,7 @@ void Loader::init(HMODULE dllHandle) {
 	Loader::dllHandle = dllHandle;
 
 	MH_Initialize();
+
 	// CreateThread
 	{
 		HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
@@ -232,7 +233,9 @@ void Loader::init(HMODULE dllHandle) {
 		printf("[!] Created CI hook\n");
 	}
 
+#ifdef DLL_STANDALONE
 	loadDll();
+#endif
 }
 
 void Loader::loadDll() {
@@ -243,13 +246,14 @@ void Loader::loadDll() {
 	}
 	HANDLE result = LoadLibraryA(path->c_str());
 	if (!result) {
-		printf("[-] LoadLibraryA failed\n");
+		printf("[-] LoadLibraryA failed: %lx\n", GetLastError());
 	} else {
 		printf("[+] Loaded client\n");
 	}
 }
 
 std::optional<std::string> Loader::prepareDll() {
+#ifdef DLL_STANDALONE
 	auto [data, size] = Files::loadResource(dllHandle, PACKET_V3_PE);
 	if (!data) {
 		return std::nullopt;
@@ -261,4 +265,6 @@ std::optional<std::string> Loader::prepareDll() {
 	std::ofstream outFile(dllPath, std::ios::binary);
 	outFile.write(reinterpret_cast<const char*>(data), size);
 	return dllPath;
+#endif
+	return "";
 }

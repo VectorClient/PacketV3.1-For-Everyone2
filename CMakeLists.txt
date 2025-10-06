@@ -3,6 +3,7 @@ project(project CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(LOADER_STANDALONE_MODE OFF)
 
 add_subdirectory(dependencies)
 link_libraries(minhook)
@@ -18,6 +19,9 @@ add_library(loader SHARED
     loader/remapper.cc
     loader/kiero/Kiero.cc
 )
+if(LOADER_STANDALONE_MODE)
+    target_compile_definitions(loader PRIVATE DLL_STANDALONE)
+endif()
 target_link_libraries(loader LightningScanner)
 
 # Interceptor
@@ -26,3 +30,9 @@ add_library(interceptor SHARED
     interceptor/hook.cc
 )
 target_link_libraries(interceptor LightningScanner)
+
+# Launcher
+add_executable(launcher
+    launcher/main.cc
+    launcher/injector.cc
+)

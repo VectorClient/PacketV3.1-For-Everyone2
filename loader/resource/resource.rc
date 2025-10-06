@@ -1,3 +1,5 @@
 #include "resource.h"
 
+#ifdef DLL_STANDALONE
 PACKET_V3_PE WAVE "packetv3"
+#endif
