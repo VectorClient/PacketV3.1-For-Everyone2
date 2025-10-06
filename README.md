@@ -6,7 +6,8 @@
 
 join our discord: https://discord.gg/dSFfzeZH99
 
-It's third time to cracked by retarded japanese
+This is the third time it's been cracked by us (and it was cracked in less than a day)
+#LAWL #XD #GG
 
 # Usage
 
